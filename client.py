@@ -18,7 +18,7 @@ def readFile(fname):
 			c = int(transx[1])
 			w = int(transx[2])
 			d = int(transx[3])
-			lis = content[i+1:i+M]
+			lis = content[i+1:i+M+1]
 			t.neworder(c,w,d,lis)
 			i = i + M
 		elif transType == 'D':

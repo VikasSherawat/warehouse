@@ -1,9 +1,10 @@
 from cass import DB
 from cassandra.cluster import Cluster
-from popularitem import PopularItem,ItemInfo
+from cassandra.query import BatchStatement
+from popularitem import PopularItem,ItemInfo,NewOrder
 import copy
 import datetime
-
+from decimal import Decimal
 
 class Transactions:
 	def __init__(self):
@@ -11,77 +12,81 @@ class Transactions:
 		self.session = db.getInstance(['127.0.0.1'],9042,'KillrVideo')
 	
 	def neworder(self,c,w,d,lis):
-	        print "new Order() = ",c
-        	print "Warehouse ID = ",w
-        	print "District ID = ",d
-        	print "Items ordered are:\n"
+		s = self.session
 		count = 1
 		all_local = 1
-		for item in lis:
-			if w != item[1]
+		for j in lis:
+			item = j.split(",")
+			if not w != item[1]:
 				all_local = 0
-				break;
-        	query = s.prepare("Insert into orderline (w_id ,d_id ,o_id ,ol_number ,c_id ,o_ol_cnt ,o_all_local ,o_entry_d ,ol_i_id ,ol_supply_w_id ,ol_delivery_d,ol_amount, ol_quantity ,ol_dist_info) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+				break
+        	query = s.prepare("Insert into orderline (w_id ,d_id ,o_id ,ol_number ,c_id ,o_ol_cnt ,o_all_local ,o_entry_d ,ol_i_id ,ol_supply_w_id ,ol_amount, ol_quantity ,ol_dist_info) values (?,?,?,?,?,?,?,?,?,?,?,?,?)")
 		
-		batch = BatchStatement(consistency_level=ConsistencyLevel.QUORUM)
+		batch = BatchStatement()
 			
 		u_batch = BatchStatement()
 
-		total_amount = 0.0
+		total_amount = Decimal(0)
 		entry_d = datetime.datetime.now()
 		q  = 'Select d_next_oid from next_order where w_id='+str(w)+' and d_id='+str(d)
 		rows = s.execute(q)
 		order = 0
 		for row in rows:
 			order = int(row.d_next_oid)
-
-		for item in lis:	
-			q = "select i_price,s_quantity,s_ytd,s_order_cnt,s_remote_cnt from item_stock where w_id = "+str(item[1])+' and i_id ='+str(item[0])
+		orderList = []
+		for j in lis:
+			item = j.split(",")
+			i_id = int(item[0])	
+			sw_id = int(item[1])	
+			i_quant = int(item[2])
+			q = "select i_name,i_price,s_quantity,s_ytd,s_order_cnt,s_remote_cnt from item_stock where w_id = "+str(sw_id)+' and i_id ='+str(i_id)
 			rows = s.execute(q)
-			amount = 0
+			name = ""
+			amount = 0.0
 			s_quantity = 0
 			s_ytd = 0.0
 			order_cnt = 0
 			remote_cnt = 0
-
 			for row in rows:
+				name = row.i_name
 				amount  = row.i_price
 				s_quantity = row.s_quantity
-				s_ytd = row.s_ytd+item[2]
-				order_cnt = row.s_order_cnt+1
-				remote_cnt = item[1]==w?row.s_remote_cnt:row.s_remote_cnt+1
+				s_ytd = row.s_ytd + i_quant
+				order_cnt = row.s_order_cnt + 1
+				remote_cnt = row.s_remote_cnt if sw_id == w else row.s_remote_cnt+1
 
-			a_quantity = s_quantity-item[2]
+			a_quantity = s_quantity-i_quant
 			if a_quantity < 10:
 				a_quantity = a_quantity + 100
 
 			q = s.prepare("update item_stock set s_quantity = ?,s_ytd = ?,s_order_cnt = ?,s_remote_cnt = ? where w_id = ? and i_id = ?")
-		
-			u_batch.add(q,(a_quantity,s_ytd,order_cnt,remote_cnt,item[1],item[0]))
+			u_batch.add(q,(a_quantity,s_ytd,order_cnt,remote_cnt,sw_id,i_id))
 			w_id =w
 			d_id =d
 			o_id =order
 			ol_number = count
+			count = count+1
 			c_id = c
 			o_ol_cnt =len(lis)
 			o_all_local =all_local
 			o_entry_d = entry_d
-			ol_i_id =item[0]
-			ol_supply_w_id =item[1]
-			ol_delivery_d=null
-			ol_quantity =item[2]
+			ol_i_id =i_id
+			ol_supply_w_id =sw_id
+			ol_quantity =i_quant
 			dist = "S_DIST_"+str(d)
 			ol_dist_info = dist
-			item_amount = amount*item[2]
+			item_amount = amount * i_quant
 			ol_amount=item_amount
+			newOrder = NewOrder(i_id,name,sw_id,i_quant,ol_amount,a_quantity)
+			orderList.append(newOrder)
 			total_amount = total_amount + item_amount
-			batch.add(query,(w_id ,d_id ,o_id ,ol_number ,c_id ,o_ol_cnt ,o_all_local ,o_entry_d ,ol_i_id ,ol_supply_w_id ,ol_delivery_d,ol_amount, ol_quantity ,ol_dist_info))
+			batch.add(query,(w_id ,d_id ,o_id ,ol_number ,c_id ,o_ol_cnt ,o_all_local ,o_entry_d ,ol_i_id ,ol_supply_w_id,ol_amount, ol_quantity ,ol_dist_info))
 		s.execute(batch)
-		s.execute(ubatch)
+		s.execute(u_batch)
 		q = 'update next_order set d_next_oid = d_next_oid + 1 where w_id='+str(w)+' and d_id='+str(d)
 		rows = s.execute(q)
 		
-		query = 'select c_last,c_credit,c_discount,w_tax,d_tax where w_id='+str(w)+' and d_id='+str(d)' and c_id ='+str(c)
+		query = 'select c_last,c_credit,c_discount,w_tax,d_tax from customer_main where w_id='+str(w)+' and d_id='+str(d)+' and c_id ='+str(c)
 		rows = s.execute(query)
 
 		lname = ""
@@ -97,14 +102,14 @@ class Transactions:
 			wtax = row.w_tax
 			dtax = row.d_tax
 		total_amount = total_amount * (1+wtax+dtax)  * (1-discount)
-		print "Customer Identifier: "w,d,c,lname,credit,discount
+		print "Customer Identifier: ",w,d,c,lname,credit,discount
 		print "Warehouse Tax = ",wtax," and District Tax = ",dtax
 		print "Order Number = ",order,", Entry Date = ",entry_d
 		print "Number of Items: ",len(lis)," and total amount = ",total_amount
-		print 
-		
+		for obj in orderList:
+			print obj.itemid,",",obj.name,",",obj.sw_id,",",obj.quantity,",",obj.amount,",",obj.stock
 
-        	print "\n"
+
 
 	def stocklevel(self,w,d,t,l):
 		s = self.session
