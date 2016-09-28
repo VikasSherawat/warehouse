@@ -2,6 +2,8 @@ from cass import DB
 from cassandra.cluster import Cluster
 from popularitem import PopularItem,ItemInfo
 import copy
+import datetime
+
 
 class Transactions:
 	def __init__(self):
@@ -10,15 +12,101 @@ class Transactions:
 	
 	def neworder(self,c,w,d,lis):
 	        print "new Order() = ",c
-        	#print "Warehouse ID = ",w
-        	#print "District ID = ",d
-        	#print "Items ordered are:\n"
-        	#for item in lis:
-                	#print item
-        	#print "\n"
+        	print "Warehouse ID = ",w
+        	print "District ID = ",d
+        	print "Items ordered are:\n"
+		count = 1
+		all_local = 1
+		for item in lis:
+			if w != item[1]
+				all_local = 0
+				break;
+        	query = s.prepare("Insert into orderline (w_id ,d_id ,o_id ,ol_number ,c_id ,o_ol_cnt ,o_all_local ,o_entry_d ,ol_i_id ,ol_supply_w_id ,ol_delivery_d,ol_amount, ol_quantity ,ol_dist_info) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+		
+		batch = BatchStatement(consistency_level=ConsistencyLevel.QUORUM)
+			
+		u_batch = BatchStatement()
+
+		total_amount = 0.0
+		entry_d = datetime.datetime.now()
+		q  = 'Select d_next_oid from next_order where w_id='+str(w)+' and d_id='+str(d)
+		rows = s.execute(q)
+		order = 0
+		for row in rows:
+			order = int(row.d_next_oid)
+
+		for item in lis:	
+			q = "select i_price,s_quantity,s_ytd,s_order_cnt,s_remote_cnt from item_stock where w_id = "+str(item[1])+' and i_id ='+str(item[0])
+			rows = s.execute(q)
+			amount = 0
+			s_quantity = 0
+			s_ytd = 0.0
+			order_cnt = 0
+			remote_cnt = 0
+
+			for row in rows:
+				amount  = row.i_price
+				s_quantity = row.s_quantity
+				s_ytd = row.s_ytd+item[2]
+				order_cnt = row.s_order_cnt+1
+				remote_cnt = item[1]==w?row.s_remote_cnt:row.s_remote_cnt+1
+
+			a_quantity = s_quantity-item[2]
+			if a_quantity < 10:
+				a_quantity = a_quantity + 100
+
+			q = s.prepare("update item_stock set s_quantity = ?,s_ytd = ?,s_order_cnt = ?,s_remote_cnt = ? where w_id = ? and i_id = ?")
+		
+			u_batch.add(q,(a_quantity,s_ytd,order_cnt,remote_cnt,item[1],item[0]))
+			w_id =w
+			d_id =d
+			o_id =order
+			ol_number = count
+			c_id = c
+			o_ol_cnt =len(lis)
+			o_all_local =all_local
+			o_entry_d = entry_d
+			ol_i_id =item[0]
+			ol_supply_w_id =item[1]
+			ol_delivery_d=null
+			ol_quantity =item[2]
+			dist = "S_DIST_"+str(d)
+			ol_dist_info = dist
+			item_amount = amount*item[2]
+			ol_amount=item_amount
+			total_amount = total_amount + item_amount
+			batch.add(query,(w_id ,d_id ,o_id ,ol_number ,c_id ,o_ol_cnt ,o_all_local ,o_entry_d ,ol_i_id ,ol_supply_w_id ,ol_delivery_d,ol_amount, ol_quantity ,ol_dist_info))
+		s.execute(batch)
+		s.execute(ubatch)
+		q = 'update next_order set d_next_oid = d_next_oid + 1 where w_id='+str(w)+' and d_id='+str(d)
+		rows = s.execute(q)
+		
+		query = 'select c_last,c_credit,c_discount,w_tax,d_tax where w_id='+str(w)+' and d_id='+str(d)' and c_id ='+str(c)
+		rows = s.execute(query)
+
+		lname = ""
+		credit = ""
+		discount = 0.0
+		wtax = 0.0
+		dtax = 0.0
+ 
+		for row in rows:
+			lname = row.c_last
+			credit = row.c_credit
+			discount = row.c_discount
+			wtax = row.w_tax
+			dtax = row.d_tax
+		total_amount = total_amount * (1+wtax+dtax)  * (1-discount)
+		print "Customer Identifier: "w,d,c,lname,credit,discount
+		print "Warehouse Tax = ",wtax," and District Tax = ",dtax
+		print "Order Number = ",order,", Entry Date = ",entry_d
+		print "Number of Items: ",len(lis)," and total amount = ",total_amount
+		print 
+		
+
+        	print "\n"
 
 	def stocklevel(self,w,d,t,l):
-		print "Stock  Level() ",w
 		s = self.session
                 query  = 'Select d_next_oid from next_order where w_id='+str(w)+' and d_id='+str(d)
 		rows = s.execute(query)
@@ -28,7 +116,6 @@ class Transactions:
 		oid = oid-l
 		query = 'select ol_i_id from orderline where w_id='+str(w)+' and d_id='+str(d)+' and o_id >='+str(oid)
 		rows = s.execute(query)
-		print 'Fetched  order:'
 		count = 0
 		for row in rows:
 			item_id = int(row.ol_i_id)
@@ -94,7 +181,6 @@ class Transactions:
 				iname = r.i_name
 			
 			if  item not in itemdc:
-				print 'Setting the iteminfo object for: ',iname
 				ob = ItemInfo(item,iname,0)
 				itemdc[item] = ob
 			
@@ -104,18 +190,15 @@ class Transactions:
 		
 		for row in storerows:
 			item = row.ol_i_id
-			print 'Checking the item: ',item
 			if item in itemdc:
 				obj = itemdc[item]
 				obj.count = obj.count+1
-				print 'Increase count of ',item,'. New count is: ',obj.count
 		for j in itemdc.itervalues():
 			print j.name,(j.count*100)/l,'%'
 			
 
 	def topbalance(self):
 		s = self.session
-		print 'Top 10 Customers with maximum outstanding balance are:'
 		query = 'select w_id,d_id,c_id,c_balance from c_payment limit 10'
 		rows = s.execute(query)
 		for row in rows:
@@ -133,4 +216,4 @@ class Transactions:
 				first = s.c_first
 				middle = s.c_middle
 				last = s.c_last
-			print row.c_balance
+			print first,middle,last,row.c_balance,wname,dname
