@@ -1,0 +1,110 @@
+CQL script for new data model in cassandra
+
+create table customer_main (
+w_id int,
+d_id int,
+c_id int,
+c_first text,
+c_last text,
+c_middle text,
+c_street_1 text,
+c_street_2 text,
+c_city text,
+c_state text,
+c_zip text,
+c_phone text,
+c_since timestamp,
+c_credit text,
+c_credit_lim decimal,
+c_discount decimal,
+c_data text,
+w_street_1 text,
+w_street_2 text,
+w_city text,
+w_state text,
+w_zip text,
+w_tax decimal,
+d_street_1 text,
+d_street_2 text,
+d_city text,
+d_state text,
+d_zip text,
+d_tax decimal,
+PRIMARY KEY((w_id,d_id),c_id))
+with clustering order by (c_id asc);
+
+create table orderline (
+w_id int,
+d_id int,
+o_id int,
+ol_number int,
+c_id int,
+o_carrier_id int,
+o_ol_cnt int,
+o_all_local int,
+o_entry_d timestamp,
+ol_i_id int,
+ol_supply_w_id int,
+ol_delivery_d timestamp,
+ol_amount decimal,
+ol_quantity int,
+ol_dist_info text,
+PRIMARY KEY((w_id,d_id),o_id, ol_number))
+with clustering order by (o_id desc, ol_number asc);
+
+create table item_stock (
+w_id int,
+i_id int,
+s_quantity int,
+s_ytd int,
+s_order_cnt int,
+s_remote_cnt int,
+s_dist_1 int,
+s_dist_2 int,
+s_dist_3 int,
+s_dist_4 int,
+s_dist_5 int,
+s_dist_6 int,
+s_dist_7 int,
+s_dist_8 int,
+s_dist_9 int,
+s_dist_10 int,
+i_name text,
+i_price decimal,
+i_im_id int,
+i_data text,
+primary key(w_id,i_id));
+
+create table next_order (
+w_id int,
+d_id int,
+d_nex_oid counter,
+primary key(w_id,d_id));
+
+
+create table wd_payment (
+w_id int,
+d_id int,
+w_ytd decimal,
+d_ytd decimal,
+primary key(w_id,d_id));
+
+create table o_carrier (
+w_id int,
+d_id int,
+o_id int,
+o_carrier_id int,
+primary key((w_id,d_id),o_id));
+
+create index carrier_id on keyspace.o_carrier (o_carrier_id);
+
+create table c_payment (
+w_id int,
+d_id int,
+c_id int,
+c_balance decimal,
+c_ytd_payment decimal,
+c_payment_cnt int,
+c_delivery_cnt int,
+primary key((w_id,d_id),c_balance,c_id))
+with clustering order by (c_balance desc, c_id asc);

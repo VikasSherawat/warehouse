@@ -56,7 +56,7 @@ def readTransactions(start, end):
 if __name__ == "__main__":
 	#print 'Inside main'
 	start = time.time()
-	count =	readTransactions(0,2)
+	count =	readTransactions(0,1)
 	print "Total Transactions processed are:",count
 	rtime = time.time()-start
 	throughput =rtime/count 		
