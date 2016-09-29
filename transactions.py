@@ -88,7 +88,11 @@ class Transactions:
 		
 		query = 'select c_last,c_credit,c_discount,w_tax,d_tax from customer_main where w_id='+str(w)+' and d_id='+str(d)+' and c_id ='+str(c)
 		rows = s.execute(query)
-
+		
+		query = s.prepare('insert into o_carrier(w_id,d_id,o_id) values (?,?,?)')
+		cbatch = BatchStatement()
+		cbatch.add(query,(w,d,order))
+		s.execute(cbatch)
 		lname = ""
 		credit = ""
 		discount = 0.0
@@ -101,6 +105,7 @@ class Transactions:
 			discount = row.c_discount
 			wtax = row.w_tax
 			dtax = row.d_tax
+
 		total_amount = total_amount * (1+wtax+dtax)  * (1-discount)
 		print "Customer Identifier: ",w,d,c,lname,credit,discount
 		print "Warehouse Tax = ",wtax," and District Tax = ",dtax
