@@ -89,9 +89,9 @@ class Transactions:
 		query = 'select c_last,c_credit,c_discount,w_tax,d_tax from customer_main where w_id='+str(w)+' and d_id='+str(d)+' and c_id ='+str(c)
 		rows = s.execute(query)
 		
-		query = s.prepare('insert into o_carrier(w_id,d_id,o_id) values (?,?,?)')
+		query = s.prepare('insert into o_carrier(w_id,d_id,o_id,o_carrier_id) values (?,?,?,?)')
 		cbatch = BatchStatement()
-		cbatch.add(query,(w,d,order))
+		cbatch.add(query,(w,d,order,-1))
 		s.execute(cbatch)
 		lname = ""
 		credit = ""
@@ -114,6 +114,37 @@ class Transactions:
 		for obj in orderList:
 			print obj.itemid,",",obj.name,",",obj.sw_id,",",obj.quantity,",",obj.amount,",",obj.stock
 
+	def delivery(self,w,carrier):
+		s = self.session
+		orderdc = {}
+		for i in range(1,11):
+			query = 'select o_id from o_carrier where w_id='+str(w)+' and d_id='+str(i)+' and o_carrier_id = -1  limit 1'
+			rows = s.execute(query)
+			for row in rows:
+				orderdc[i] = row.o_id
+		
+		ubatch = BatchStatement()
+		d_date = datetime.datetime.now()
+		for d_id,o_id in orderdc.itervalues():
+			query = 'update o_carrier set o_carrier_id = ? where w_id = ? and d_id = ? and o_id = ?'
+			ubatch.add(query,(carrier,w,d_id,o_id))
+			order_q = 'update orderline set ol_delivery_d = ? where w_id = ? and d_id = ? and o_id = ?'
+			ubatch.add(order_q,(d_date,w,d_id,o_id))
+			c_query = 'select c_id,ol_amount from orderline where w_id='+str(w)+' and d_id='+str(d_id)+' and o_id ='+str(o_id)
+			rows = s.execute(c_query)
+			c_id = 0
+			ol_amount = Decimal(0)
+			for row in rows:
+				c_id = row.c_id
+				ol_amount = ol_amound + row.ol_amount
+
+			p_query = 'update c_payment set c_balance = c_balance  + ?,c_delivery_cnt = c_delivery_cnt+1 where where  w_id = ? and d_id = ? and c_id = ?'
+			ubatch.add(p_query,(ol_amount,w,d_id,c_id))
+		s.execute(ubatch)
+
+		print 'Carrier_Id set for all orders:'	
+
+			
 
 
 	def stocklevel(self,w,d,t,l):
