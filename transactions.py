@@ -133,32 +133,18 @@ class Transactions:
 			c_query = 'select c_id,ol_amount,o_ol_cnt from orderline where w_id='+str(w)+' and d_id='+str(d_id)+' and o_id ='+str(o_id)
 			rows = s.execute(c_query)
 			c_id = 0
-			ol_amount = Decimal(0)
+			ol_amount = 0
 			ol_count = 0
 			for row in rows:
 				ol_count = row.o_ol_cnt+1
 				c_id = row.c_id
-				ol_amount = ol_amount + row.ol_amount
+				ol_amount = ol_amount + int(row.ol_amount)
 			for i in range(1,ol_count):
 				ubatch.add(SimpleStatement("update orderline set ol_delivery_d = %s where w_id = %s and d_id = %s and o_id= %s and ol_number= %s"),(d_date,w,d_id,o_id,i))
 
 			query = 'select c_balance,c_delivery_cnt,c_payment_cnt, c_ytd_payment from c_payment where  w_id ='+str(w)+' and d_id ='+str(d_id)+' and c_id ='+str(c_id)
-			result = s.execute(query)
-			c_balance = Decimal(0)
-			p_count = 0
-			ytd = Decimal(0)
-			d_count = 0
-			for row in result:
-				c_balance = row.c_balance+ol_amount
-				d_count = row.c_delivery_cnt+1
-				p_count = row.c_payment_cnt
-				ytd = row.c_ytd_payment
-			
-			print w,d_id,c_id,c_balance,p_count,d_count,ytd
-
-			 
-			p_query = 'update c_payment set c_balance ='+str(c_balance)+' ,c_delivery_cnt ='+str(d_count)+'  where  w_id ='+str(w)+' and d_id ='+str(d_id)+' and c_id ='+str(c_id)
-			ubatch.add(p_query)
+			p_query = 'update c_payment set c_balance = c_balance + '+str(ol_amount)+' ,c_delivery_cnt = c_delivery_cnt+1  where  w_id ='+str(w)+' and d_id ='+str(d_id)+' and c_id ='+str(c_id)
+			s.execute(p_query)
 		s.execute(ubatch)
 
 		print 'Carrier_Id set for all orders:'	
