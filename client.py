@@ -29,6 +29,11 @@ def readFile(fname):
 			t.delivery(w,c)
 		elif transType == 'P':
 			print "Payment type transaction========================================================================================="
+			w = int(transx[1])
+			d = int(transx[2])
+			c = int(transx[3])
+			p = int(transx[4])
+			t.payment(c,w,d,p)
 		elif transType == 'S':
 			print "Stock level transaction=========================================================================================="
 			w = int(transx[1])
