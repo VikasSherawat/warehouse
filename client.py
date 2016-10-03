@@ -12,8 +12,9 @@ def readFile(fname):
 		transx = content[i].split(",");
 		transType = transx[0]
 		tcount =  tcount + 1
+		print "------------------------------------------------------------------------------------------------------------------------------------"  
 		if transType == 'N':
-			#print "New Order type transaction"
+			print "New Order type transaction======================================================================================="
 			M = int(transx[4])
 			c = int(transx[1])
 			w = int(transx[2])
@@ -22,24 +23,32 @@ def readFile(fname):
 			t.neworder(c,w,d,lis)
 			i = i + M
 		elif transType == 'D':
-			print "Delivery type transaction"
+			print "Delivery type transaction======================================================================================="
+			w = int(transx[1])
+			c = int(transx[2])
+			t.delivery(w,c)
 		elif transType == 'P':
-			print "Payment type transaction"
+			print "Payment type transaction========================================================================================="
 		elif transType == 'S':
+			print "Stock level transaction=========================================================================================="
 			w = int(transx[1])
 			d = int(transx[2])
 			th  = int(transx[3])
 			l = int(transx[4])
 			t.stocklevel(w,d,th,l)
 		elif transType == 'O':
-			print "Order status transaction"
+			print "Order status transaction======================================================================================="
 		elif transType == 'I':
+			print "Popular Item transaction======================================================================================="
 			w = int(transx[1])
 			d = int(transx[2])
 			l = int(transx[3])
 			t.popularItem(w,d,l)
-		else:
+		elif transType == 'T':
+			print "Top Balance transaction========================================================================================="
 			t.topbalance()
+		else:
+			print 'Input Mistmatch'
 		i = i+1;
 	return tcount;
 
