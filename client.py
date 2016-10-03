@@ -38,6 +38,10 @@ def readFile(fname):
 			t.stocklevel(w,d,th,l)
 		elif transType == 'O':
 			print "Order status transaction======================================================================================="
+			w = int(transx[1])
+			d = int(transx[2])
+			c = int(transx[3])
+			t.orderstatus(w,d,c)
 		elif transType == 'I':
 			print "Popular Item transaction======================================================================================="
 			w = int(transx[1])
