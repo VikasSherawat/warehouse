@@ -20,6 +20,5 @@ i=1
 while i < len(contents):
         transx = contents[i].strip('\n').split(",");
         query = 'UPDATE next_order SET d_next_o_id=d_next_o_id+'+transx[2]+ ' WHERE w_id='+ transx[0] +' and d_id='+ transx[1] +';'
-	print(query)
         session.execute(query)
 	i=i+1
