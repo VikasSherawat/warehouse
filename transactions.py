@@ -9,7 +9,7 @@ from decimal import Decimal
 class Transactions:
 	def __init__(self):
 		db = DB()
-		self.session = db.getInstance(['127.0.0.1'],9042,'KillrVideo')
+		self.session = db.getInstance(['127.0.0.1'],9042,'warehouse')
 	
 	def neworder(self,c,w,d,lis):
 		s = self.session
@@ -42,7 +42,7 @@ class Transactions:
 			q = "select i_name,i_price,s_quantity,s_ytd,s_order_cnt,s_remote_cnt from item_stock where w_id = "+str(sw_id)+' and i_id ='+str(i_id)
 			rows = s.execute(q)
 			name = ""
-			amount = 0.0
+			amount = Decimal(0)
 			s_quantity = 0
 			s_ytd = 0.0
 			order_cnt = 0
@@ -75,7 +75,9 @@ class Transactions:
 			ol_quantity =i_quant
 			dist = "S_DIST_"+str(d)
 			ol_dist_info = dist
-			item_amount = amount * i_quant
+			if amount is None:
+				amount = 0
+			item_amount = Decimal(amount * i_quant)
 			ol_amount=item_amount
 			newOrder = NewOrder(i_id,name,sw_id,i_quant,ol_amount,a_quantity)
 			orderList.append(newOrder)
@@ -395,7 +397,6 @@ class Transactions:
 		for i in sorted(cust_list,key=lambda x: x[3])[-10:][::-1]:
 			wid,did,cid = i[0],i[1],i[2]
 			query = 'select c_first,c_middle,c_last,w_name,d_name from customer_main where w_id = '+str(wid)+' and d_id='+str(did)+' and c_id='+str(cid)
-                        print query
                         r = s.execute(query)
                         first = "vikas"
                         middle = ""

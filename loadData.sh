@@ -1,8 +1,8 @@
 echo "Merging data"
 echo "-----------------------------------------------------------------------------------------------"
-python mergeCWD.py
-python mergeItemStock.py
-python mergeOrders.py
+#python mergeCWD.py
+#python mergeItemStock.py
+#python mergeOrders.py
 
 echo "-----------------------------------------------------------------------------------------------"
 echo "Creating tables"

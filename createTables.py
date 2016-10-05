@@ -1,11 +1,9 @@
-import pandas as pd
 from cassandra.cluster import Cluster
 from cassandra.query import BatchStatement
 from cassandra import ConsistencyLevel
-
-cluster = Cluster(contact_points = ['127.0.0.1'])
-print(cluster)
-session = cluster.connect('warehouse')
+from cass import DB
+db = DB()
+session = db.getInstance(['127.0.0.1'],9042,'warehouse')
 
 session.execute('create table customer_main ( w_id int, d_id int, c_id int, c_first text, c_last text, c_middle text, c_street_1 text, c_street_2 text, c_city text, c_state text, c_zip text, c_phone text, c_since timestamp, c_credit text, c_credit_lim decimal, c_discount decimal, c_data text, w_name text, w_street_1 text, w_street_2 text, w_city text, w_state text, w_zip text, w_tax decimal, d_name text, d_street_1 text, d_street_2 text, d_city text, d_state text, d_zip text, d_tax decimal, PRIMARY KEY((w_id,d_id),c_id)) with clustering order by (c_id asc);')
 

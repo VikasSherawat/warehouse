@@ -1,13 +1,12 @@
-import pandas as pd
 from cassandra.cluster import Cluster
 from cassandra.query import BatchStatement
 import copy
 import datetime
 from decimal import Decimal
+from cass import DB
 
-cluster = Cluster(contact_points = ['127.0.0.1'])
-print(cluster)
-session = cluster.connect('warehouse')
+db = DB()
+session = db.getInstance(['127.0.0.1'],9042,'warehouse')
 
 #This is to load data in table 7 with counter since it can not be copied be directly copied from csv files
 contents =[]
