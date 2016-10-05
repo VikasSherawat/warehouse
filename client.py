@@ -26,6 +26,8 @@ class MyThread (threading.Thread):
 		print "Throughput =",throughput
 		print "********************************************************************************"
 		print "Thread ",self.id, "exiting"
+		file = open('result.txt','a')
+		file.write("File:"+str(self.id)+"\t"+"Transactions: "+str(count)+"\t"+"Time Taken: "+str(rtime)+"\tThroughput:"+str(throughput)+"\n")
 
 	def readFile(self,fname):
 		with open(fname) as f:
