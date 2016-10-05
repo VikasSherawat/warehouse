@@ -28,11 +28,11 @@ class Transactions:
 
 		total_amount = Decimal(0)
 		entry_d = datetime.datetime.now()
-		q  = 'Select d_next_oid from next_order where w_id='+str(w)+' and d_id='+str(d)
+		q  = 'Select d_next_o_id from next_order where w_id='+str(w)+' and d_id='+str(d)
 		rows = s.execute(q)
 		order = 0
 		for row in rows:
-			order = int(row.d_next_oid)
+			order = int(row.d_next_o_id)
 		orderList = []
 		for j in lis:
 			item = j.split(",")
@@ -83,7 +83,7 @@ class Transactions:
 			batch.add(query,(w_id ,d_id ,o_id ,ol_number ,c_id ,o_ol_cnt ,o_all_local ,o_entry_d ,ol_i_id ,ol_supply_w_id,ol_amount, ol_quantity ,ol_dist_info))
 		s.execute(batch)
 		s.execute(u_batch)
-		q = 'update next_order set d_next_oid = d_next_oid + 1 where w_id='+str(w)+' and d_id='+str(d)
+		q = 'update next_order set d_next_o_id = d_next_o_id + 1 where w_id='+str(w)+' and d_id='+str(d)
 		rows = s.execute(q)
 		
 		query = 'select c_last,c_credit,c_discount,w_tax,d_tax from customer_main where w_id='+str(w)+' and d_id='+str(d)+' and c_id ='+str(c)
@@ -287,11 +287,11 @@ class Transactions:
 
 	def stocklevel(self,w,d,t,l):
 		s = self.session
-                query  = 'Select d_next_oid from next_order where w_id='+str(w)+' and d_id='+str(d)
+                query  = 'Select d_next_o_id from next_order where w_id='+str(w)+' and d_id='+str(d)
 		rows = s.execute(query)
 		oid = 0
 		for row in rows:
-			oid = int(row.d_next_oid)
+			oid = int(row.d_next_o_id)
 		oid = oid-l
 		query = 'select ol_i_id from orderline where w_id='+str(w)+' and d_id='+str(d)+' and o_id >='+str(oid)
 		rows = s.execute(query)
@@ -311,11 +311,11 @@ class Transactions:
 	
 	def popularItem(self,w,d,l):
 		s = self.session
-		query  = 'Select d_next_oid from next_order where w_id='+str(w)+' and d_id='+str(d)
+		query  = 'Select d_next_o_id from next_order where w_id='+str(w)+' and d_id='+str(d)
                 rows = s.execute(query)
                 oid = 0
                 for row in rows:
-                        oid = int(row.d_next_oid)
+                        oid = int(row.d_next_o_id)
                 oid = oid-l
                 query = 'select o_id,ol_i_id,o_entry_d,ol_quantity,o_c_id from orderline where w_id='+str(w)+' and d_id='+str(d)+' and o_id >='+str(oid)
                 rows = s.execute(query)
