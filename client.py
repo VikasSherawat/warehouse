@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 from transactions import Transactions
 
@@ -74,7 +75,9 @@ def readTransactions(start, end):
 if __name__ == "__main__":
 	#print 'Inside main'
 	start = time.time()
-	count =	readTransactions(0,1)
+	begin = int(sys.argv[1])
+	end = int(sys.argv[2])
+	count =	readTransactions(begin,end+1)
 	print "Total Transactions processed are:",count
 	rtime = time.time()-start
 	throughput =rtime/count 		

@@ -20,7 +20,7 @@ class Transactions:
 			if not w != item[1]:
 				all_local = 0
 				break
-        	query = s.prepare("Insert into orderline (w_id ,d_id ,o_id ,ol_number ,c_id ,o_ol_cnt ,o_all_local ,o_entry_d ,ol_i_id ,ol_supply_w_id ,ol_amount, ol_quantity ,ol_dist_info) values (?,?,?,?,?,?,?,?,?,?,?,?,?)")
+        	query = s.prepare("Insert into orderline (w_id ,d_id ,o_id ,ol_number ,o_c_id ,o_ol_cnt ,o_all_local ,o_entry_d ,ol_i_id ,ol_supply_w_id ,ol_amount, ol_quantity ,ol_dist_info) values (?,?,?,?,?,?,?,?,?,?,?,?,?)")
 		
 		batch = BatchStatement()
 			
@@ -202,14 +202,14 @@ class Transactions:
 		for d_id,o_id in orderdc.iteritems():
 			query = 'update o_carrier set o_carrier_id ='+str(carrier)+ ' where w_id ='+str(w)+'  and d_id ='+str(d_id)+' and o_id ='+str(o_id)
 			ubatch.add(query)
-			c_query = 'select c_id,ol_amount,o_ol_cnt from orderline where w_id='+str(w)+' and d_id='+str(d_id)+' and o_id ='+str(o_id)
+			c_query = 'select o_c_id,ol_amount,o_ol_cnt from orderline where w_id='+str(w)+' and d_id='+str(d_id)+' and o_id ='+str(o_id)
 			rows = s.execute(c_query)
 			c_id = 0
 			ol_amount = 0
 			ol_count = 0
 			for row in rows:
 				ol_count = row.o_ol_cnt+1
-				c_id = row.c_id
+				c_id = row.o_c_id
 				ol_amount = ol_amount + int(row.ol_amount)
 			for i in range(1,ol_count):
 				ubatch.add(SimpleStatement("update orderline set ol_delivery_d = %s where w_id = %s and d_id = %s and o_id= %s and ol_number= %s"),(d_date,w,d_id,o_id,i))
@@ -243,7 +243,7 @@ class Transactions:
 			cbalance = result.c_balance
 	
 
-		q = 'select o_id, o_entry_d from orderline where w_id = '+str(w)+' and d_id = '+str(d)+' and c_id = '+str(c)+' limit 1'
+		q = 'select o_id, o_entry_d from orderline where w_id = '+str(w)+' and d_id = '+str(d)+' and o_c_id = '+str(c)+' limit 1'
 		print q
 		results = s.execute(q)
 		
@@ -317,14 +317,14 @@ class Transactions:
                 for row in rows:
                         oid = int(row.d_next_oid)
                 oid = oid-l
-                query = 'select o_id,ol_i_id,o_entry_d,ol_quantity,c_id from orderline where w_id='+str(w)+' and d_id='+str(d)+' and o_id >='+str(oid)
+                query = 'select o_id,ol_i_id,o_entry_d,ol_quantity,o_c_id from orderline where w_id='+str(w)+' and d_id='+str(d)+' and o_id >='+str(oid)
                 rows = s.execute(query)
 		storerows = copy.copy(rows)
 		orderdc = dict()
 		for row in rows:
 			item = row.ol_i_id
 			oid = row.o_id
-			cid = row.c_id
+			cid = row.o_c_id
 			quan = row.ol_quantity
 			entry_d = row.o_entry_d
 			if oid in orderdc:
