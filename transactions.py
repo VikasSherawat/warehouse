@@ -9,7 +9,7 @@ from decimal import Decimal
 class Transactions:
 	def __init__(self):
 		db = DB()
-		self.session = db.getInstance(['127.0.0.1'],9042,'KillrVideo')
+		self.session = db.getInstance(['127.0.0.1'],9042,'warehouse')
 	
 	def neworder(self,c,w,d,lis):
 		s = self.session
@@ -42,7 +42,7 @@ class Transactions:
 			q = "select i_name,i_price,s_quantity,s_ytd,s_order_cnt,s_remote_cnt from item_stock where w_id = "+str(sw_id)+' and i_id ='+str(i_id)
 			rows = s.execute(q)
 			name = ""
-			amount = 0.0
+			amount = Decimal(0)
 			s_quantity = 0
 			s_ytd = 0.0
 			order_cnt = 0
