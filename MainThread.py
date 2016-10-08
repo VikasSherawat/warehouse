@@ -1,17 +1,22 @@
 import threading
 import time
-from client import MyThread
+from client import MyThread,MainThread
 import sys
 import os.path
 
 
-
 if __name__ == "__main__":
         #print 'Inside main'
-        start = time.time()
-        end = int(sys.argv[1])
+        MainThread.starttime = time.time()
+	begin = int(sys.argv[1])
+        end = int(sys.argv[2])
+	MainThread.totalfiles = end+1-begin
 	if os.path.isfile('result.txt'):
 		os.remove('result.txt')
-	for i in xrange(0,end+1):
+	ls = []
+	for i in xrange(begin,end+1):
 		t = MyThread(i)
+		ls.append(t)
 		t.start()
+	for i in ls:
+		i.join()
