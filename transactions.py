@@ -1,18 +1,71 @@
 from cass import DB
 from cassandra.cluster import Cluster
-from cassandra.query import BatchStatement,SimpleStatement
+from cassandra.query import BatchStatement,SimpleStatement,BoundStatement
 from popularitem import PopularItem,ItemInfo,NewOrder
 import copy
 import datetime
+import os
 from decimal import Decimal
 
 class Transactions:
-	def __init__(self):
+	def __init__(self,fid):
 		db = DB()
-		self.session = db.getInstance(['127.0.0.1'],9042,'warehouse')
+		self.s = db.getInstance(['127.0.0.1'],9042,'warehouse')
+		self.fname = str(fid)+'-output.txt'
+                if os.path.isfile(self.fname):
+                        os.remove(self.fname)
+		self.file = open(self.fname,'a')
+				
+		#queries for new order Transaction
+		self.n_i_order= self.s.prepare("Insert into orderline (w_id ,d_id ,o_id ,ol_number ,o_c_id ,o_ol_cnt ,o_all_local ,o_entry_d ,ol_i_id ,ol_supply_w_id ,ol_amount, ol_quantity ,ol_dist_info,o_carrier_id,o_i_name,o_i_price) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+		self.n_s_next  = self.s.prepare("Select d_next_o_id from next_order where w_id=? and d_id=?")
+		self.n_s_item = self.s.prepare("select i_name,i_price,s_quantity,s_ytd,s_order_cnt,s_remote_cnt from item_stock where w_id = ? and i_id =?")
+		self.n_u_item = self.s.prepare("update item_stock set s_quantity = ?,s_ytd = ?,s_order_cnt = ?,s_remote_cnt = ? where w_id = ? and i_id = ?")
+		self.n_u_next = self.s.prepare("update next_order set d_next_o_id = d_next_o_id + 1 where w_id=? and d_id=?")
+		self.n_s_cmain =self.s.prepare("select c_last,c_credit,c_discount,w_tax,d_tax from customer_main where w_id=? and d_id=? and c_id =?") 
+		self.n_i_carr = self.s.prepare("insert into o_carrier(w_id,d_id,o_id,o_carrier_id) values (?,?,?,?)")
+
+		#queries for Payment Transaction
+		self.p_u_w_pay = self.s.prepare("update wd_payment set w_ytd = w_ytd + ? where w_id = ? and d_id = ?")
+		self.p_u_d_pay = self.s.prepare("update wd_payment set d_ytd = d_ytd + ? where w_id = ? and d_id = ?")
+		self.p_u_cpay = self.s.prepare("update c_payment set c_balance = c_balance - ?, c_ytd_payment = c_ytd_payment + ?, c_payment_cnt = c_payment_cnt + 1 where c_id = ? and w_id = ? and d_id = ?")
+		self.p_s_cpay = self.s.prepare("select c_balance from c_payment where c_id=? and w_id=? and d_id=?")
+		self.p_s_cmain = self.s.prepare("select c_first, c_last, c_middle, c_street_1, c_street_2, c_city, c_state, c_zip, c_phone, c_since, c_credit, c_credit_lim, c_discount, w_street_1, w_street_2, w_state, w_zip, w_city, d_street_1, d_street_2, d_city, d_state, d_zip from customer_main where c_id=? and w_id=?  and d_id=?")
+		#queries for Delivery Transaction
+		self.d_s_carr = self.s.prepare("select o_id from o_carrier where w_id=? and d_id=? and o_carrier_id = -1  limit 1")
+		self.d_u_carr = self.s.prepare("update o_carrier set o_carrier_id =? where w_id =?  and d_id =? and o_id=?")
+		self.d_s_order = self.s.prepare("select o_c_id,ol_amount,o_ol_cnt from orderline where w_id=? and d_id=? and o_id =?")
+		self.d_u_order = self.s.prepare("update orderline set ol_delivery_d = ? where w_id = ? and d_id = ? and o_id= ? and ol_number=?")
+		self.d_u_cpay = self.s.prepare("update c_payment set c_balance = c_balance + ?,c_delivery_cnt = c_delivery_cnt+1  where  w_id =? and d_id =? and c_id =?")
+
+	
+		#queries for OrderStatus Transaction
+		self.o_s_cmain = self.s.prepare("select c_first, c_last, c_middle from customer_main where w_id=? and d_id=? and c_id=?")		
+		self.o_s_cpay = self.s.prepare("select c_balance from c_payment where w_id = ? and d_id = ? and c_id = ?")
+		self.o_s_order = self.s.prepare("select o_id, o_entry_d from orderline where w_id = ? and d_id = ? and o_c_id = ? limit 1")
+		self.o_s_carr = self.s.prepare("select o_carrier_id from o_carrier where w_id = ? and d_id = ? and o_id = ?")
+		self.o_s1_order = self.s.prepare("select ol_i_id, ol_supply_w_id, ol_quantity, ol_amount, ol_delivery_d from orderline where w_id =? and d_id =? and o_id = ?")
+		
+		#queries for Stock Level Transaction
+		self.s_s_next = self.s.prepare("Select d_next_o_id from next_order where w_id=? and d_id=?")
+		self.s_s_order = self.s.prepare("select ol_i_id from orderline where w_id=? and d_id=? and o_id >=?")
+		self.s_s_stock = self.s.prepare("select s_quantity from item_stock where w_id =? and i_id =?")
+		
+
+		#queries for Popular Item  Transaction
+		self.i_s_next = self.s.prepare("Select d_next_o_id from next_order where w_id=? and d_id=?")
+		self.i_s_order = self.s.prepare("select o_id,ol_i_id,o_entry_d,ol_quantity,o_c_id from orderline where w_id=? and d_id=? and o_id >=?")
+		self.i_s_cmain = self.o_s_cmain
+		self.i_s_stock = self.s.prepare("select i_name from item_stock where w_id =? and i_id =?")
+
+	
+		#queries for Top Balance Transaction	
+		self.t_s_cpay = self.s.prepare("select w_id,d_id,c_id,c_balance from c_payment")
+		self.t_s_cmain = self.s.prepare("select c_first,c_middle,c_last,w_name,d_name from customer_main where w_id = ? and d_id=? and c_id=?")
+
 	
 	def neworder(self,c,w,d,lis):
-		s = self.session
+		s = self.s
 		count = 1
 		all_local = 1
 		for j in lis:
@@ -20,7 +73,6 @@ class Transactions:
 			if not w != item[1]:
 				all_local = 0
 				break
-        	query = s.prepare("Insert into orderline (w_id ,d_id ,o_id ,ol_number ,o_c_id ,o_ol_cnt ,o_all_local ,o_entry_d ,ol_i_id ,ol_supply_w_id ,ol_amount, ol_quantity ,ol_dist_info) values (?,?,?,?,?,?,?,?,?,?,?,?,?)")
 		
 		batch = BatchStatement()
 			
@@ -28,8 +80,7 @@ class Transactions:
 
 		total_amount = Decimal(0)
 		entry_d = datetime.datetime.now()
-		q  = 'Select d_next_o_id from next_order where w_id='+str(w)+' and d_id='+str(d)
-		rows = s.execute(q)
+		rows = s.execute(self.n_s_next,(w,d))
 		order = 0
 		for row in rows:
 			order = int(row.d_next_o_id)
@@ -39,8 +90,8 @@ class Transactions:
 			i_id = int(item[0])	
 			sw_id = int(item[1])	
 			i_quant = int(item[2])
-			q = "select i_name,i_price,s_quantity,s_ytd,s_order_cnt,s_remote_cnt from item_stock where w_id = "+str(sw_id)+' and i_id ='+str(i_id)
-			rows = s.execute(q)
+			
+			rows = s.execute(self.n_s_item,(sw_id,i_id))
 			name = ""
 			amount = Decimal(0)
 			s_quantity = 0
@@ -59,8 +110,7 @@ class Transactions:
 			if a_quantity < 10:
 				a_quantity = a_quantity + 100
 
-			q = s.prepare("update item_stock set s_quantity = ?,s_ytd = ?,s_order_cnt = ?,s_remote_cnt = ? where w_id = ? and i_id = ?")
-			u_batch.add(q,(a_quantity,s_ytd,order_cnt,remote_cnt,sw_id,i_id))
+			u_batch.add(self.n_u_item,(a_quantity,s_ytd,order_cnt,remote_cnt,sw_id,i_id))
 			w_id =w
 			d_id =d
 			o_id =order
@@ -81,19 +131,17 @@ class Transactions:
 			ol_amount=item_amount
 			newOrder = NewOrder(i_id,name,sw_id,i_quant,ol_amount,a_quantity)
 			orderList.append(newOrder)
+			carrier = -1
 			total_amount = total_amount + item_amount
-			batch.add(query,(w_id ,d_id ,o_id ,ol_number ,c_id ,o_ol_cnt ,o_all_local ,o_entry_d ,ol_i_id ,ol_supply_w_id,ol_amount, ol_quantity ,ol_dist_info))
+			batch.add(self.n_i_order,(w_id ,d_id ,o_id ,ol_number ,c_id ,o_ol_cnt ,o_all_local ,o_entry_d ,ol_i_id ,ol_supply_w_id,ol_amount, ol_quantity ,ol_dist_info,carrier,name,amount))
 		s.execute(batch)
 		s.execute(u_batch)
-		q = 'update next_order set d_next_o_id = d_next_o_id + 1 where w_id='+str(w)+' and d_id='+str(d)
-		rows = s.execute(q)
+		rows = s.execute(self.n_u_next,(w,d))
 		
-		query = 'select c_last,c_credit,c_discount,w_tax,d_tax from customer_main where w_id='+str(w)+' and d_id='+str(d)+' and c_id ='+str(c)
-		rows = s.execute(query)
+		rows = s.execute(self.n_s_cmain,(w,d,c))
 		
-		query = s.prepare('insert into o_carrier(w_id,d_id,o_id,o_carrier_id) values (?,?,?,?)')
 		cbatch = BatchStatement()
-		cbatch.add(query,(w,d,order,-1))
+		cbatch.add(self.n_i_carr,(w,d,order,-1))
 		s.execute(cbatch)
 		lname = ""
 		credit = ""
@@ -109,31 +157,30 @@ class Transactions:
 			dtax = row.d_tax
 
 		total_amount = total_amount * (1+wtax+dtax)  * (1-discount)
-		print "Customer Identifier: ",w,d,c,lname,credit,discount
-		print "Warehouse Tax = ",wtax," and District Tax = ",dtax
-		print "Order Number = ",order,", Entry Date = ",entry_d
-		print "Number of Items: ",len(lis)," and total amount = ",total_amount
+		out = "Customer Identifier: "+str(w)+","+str(d)+","+str(c)+","+str(lname)+","+str(credit)+","+str(discount)+"\n"
+		out += "Warehouse Tax = "+str(wtax)+" and District Tax = "+str(dtax)+"\n"
+		out += "Order Number = "+str(order)+", Entry Date = "+str(entry_d)+"\n"
+		out += "Number of Items:="+str(len(lis))+" and total amount = "+str(total_amount)+"\n"
 		for obj in orderList:
-			print obj.itemid,",",obj.name,",",obj.sw_id,",",obj.quantity,",",obj.amount,",",obj.stock
+			out += str(obj.itemid)+","+str(obj.name)+","+str(obj.sw_id)+","+str(obj.quantity)+","+str(obj.amount)+","+str(obj.stock)+"\n"
+		self.file.write(out)
+
 
 
 	def payment(self,c,w,d,payment):	
-		s = self.session
-
+		s = self.s
+		
 		for i in range(1,11):
-			query = s.execute('update wd_payment set w_ytd = w_ytd +' + str(payment) + ' where w_id = ' + str(w) + ' and d_id = ' + str(i))
-		query2 = s.execute('update wd_payment set d_ytd = d_ytd +' + str(payment) + ' where w_id =' + str(w)+ ' and d_id =' + str(d))
-		query3 = s.execute('update c_payment set c_balance = c_balance -' + str(payment) + ', c_ytd_payment = c_ytd_payment + ' + str(payment) + ', c_payment_cnt = c_payment_cnt + 1 where c_id =' + str(c) + ' and w_id = ' + str(w) + ' and d_id = ' + str(d))
-
-		q = 'select c_balance from c_payment where c_id='+str(c)+' and w_id='+str(w)+' and d_id='+str(d)+' limit 1'
-		rows = s.execute(q)
+			s.execute(self.p_u_w_pay,(payment,w,i))
+		s.execute(self.p_u_d_pay,(payment,w,d))
+		s.execute(self.p_u_cpay,(payment,payment,c,w,d))
+		rows = s.execute(self.p_s_cpay,(c,w,d))
 		cbalance = 0.0
 		for r in rows:
 			cbalance = r.c_balance
 
-		q2 = 'select c_first, c_last, c_middle, c_street_1, c_street_2, c_city, c_state, c_zip, c_phone, c_since, c_credit, c_credit_lim, c_discount, w_street_1, w_street_2, w_state, w_zip, w_city, d_street_1, d_street_2, d_city, d_state, d_zip from customer_main where c_id='+str(c)+' and w_id='+str(w)+' and d_id='+str(d)+' limit 1'
 
-		results = s.execute(q2)
+		results = s.execute(self.p_s_cmain,(c,w,d))
 		
 		cfirst = ""
 		clast = ""
@@ -183,29 +230,27 @@ class Transactions:
 			dstate = result.d_state
 			dzip = result.d_zip
 
-		print "1. ",w,d,c,cfirst,cmiddle,clast,cstreet1,cstreet2,ccity,cstate,czip,cphone,csince,ccredit,ccreditlim,cdiscount,cbalance
-		print "2. ",wstreet1,wstreet2,wcity,wstate,wzip
-		print "3. ",dstreet1,dstreet2,dcity,dstate,dzip
-		print "4. ",payment		
+		out = str(w)+str(d)+str(c)+str(cfirst)+str(cmiddle)+str(clast)+str(cstreet1)+str(cstreet2)+str(ccity)+str(cstate)+str(czip)+str(cphone)+str(csince)+str(ccredit)+str(ccreditlim)+str(cdiscount)+str(cbalance)+"\n"
+		out += str(wstreet1)+str(wstreet2)+str(wcity)+str(wstate)+str(wzip)+"\n"
+		out += str(dstreet1)+str(dstreet2)+str(dcity)+str(dstate)+str(dzip)+"\n"
+		out += str(payment)+"\n"
+		self.file.write(out)
 
 	def delivery(self,w,carrier):
-		s = self.session
+		s = self.s
 		orderdc = {}
 		for i in range(1,11):
-			query = 'select o_id from o_carrier where w_id='+str(w)+' and d_id='+str(i)+' and o_carrier_id = -1  limit 1'
-			rows = s.execute(query)
+			#query = 'select o_id from o_carrier where w_id='+str(w)+' and d_id='+str(i)+' and o_carrier_id = -1  limit 1'
+			rows = s.execute(self.d_s_carr,(w,i))
 			for row in rows:
 				orderdc[i] = row.o_id
-		print 'Order Dictionary{d_id:o_id} :',orderdc
 		
 		ubatch = BatchStatement()
 		d_date = datetime.datetime.now()
 		obatch = BatchStatement()
 		for d_id,o_id in orderdc.iteritems():
-			query = 'update o_carrier set o_carrier_id ='+str(carrier)+ ' where w_id ='+str(w)+'  and d_id ='+str(d_id)+' and o_id ='+str(o_id)
-			ubatch.add(query)
-			c_query = 'select o_c_id,ol_amount,o_ol_cnt from orderline where w_id='+str(w)+' and d_id='+str(d_id)+' and o_id ='+str(o_id)
-			rows = s.execute(c_query)
+			ubatch.add(self.d_u_carr,(carrier,w,d_id,o_id))
+			rows = s.execute(self.d_s_order,(w,d_id,o_id))
 			c_id = 0
 			ol_amount = 0
 			ol_count = 0
@@ -214,21 +259,16 @@ class Transactions:
 				c_id = row.o_c_id
 				ol_amount = ol_amount + int(row.ol_amount)
 			for i in range(1,ol_count):
-				ubatch.add(SimpleStatement("update orderline set ol_delivery_d = %s where w_id = %s and d_id = %s and o_id= %s and ol_number= %s"),(d_date,w,d_id,o_id,i))
+				ubatch.add(self.d_u_order,(d_date,w,d_id,o_id,i))
 
-			query = 'select c_balance,c_delivery_cnt,c_payment_cnt, c_ytd_payment from c_payment where  w_id ='+str(w)+' and d_id ='+str(d_id)+' and c_id ='+str(c_id)
-			p_query = 'update c_payment set c_balance = c_balance + '+str(ol_amount)+' ,c_delivery_cnt = c_delivery_cnt+1  where  w_id ='+str(w)+' and d_id ='+str(d_id)+' and c_id ='+str(c_id)
-			s.execute(p_query)
+			s.execute(self.d_u_cpay,(ol_amount,w,d_id,c_id))
 		s.execute(ubatch)
-
-		print 'Carrier_Id set for all orders:'	
 
 
 	def orderstatus(self, w, d, c):
-		s = self.session
+		s = self.s
 		
-		cq = 'select c_first, c_last, c_middle from customer_main where w_id='+str(w)+' and d_id = '+str(d)+' and c_id = '+ str(c)
-		cresults = s.execute(cq)
+		cresults = s.execute(self.o_s_cmain,(w,d,c))
 		cfirst = ""
 		clast = ""
 		cmiddle = ""
@@ -237,17 +277,13 @@ class Transactions:
 			clast = result.c_last
 			cmiddle = result.c_middle
 		
-		cq2 = 'select c_balance from c_payment where w_id = '+ str(w) +' and d_id = '+ str(d) +' and c_id = '+ str(c)
-		cresults2 = s.execute(cq2)
+		cresults2 = s.execute(self.o_s_cpay,(w,d,c))
 
 		cbalance = Decimal(0)
 		for result in cresults2:
 			cbalance = result.c_balance
 	
-
-		q = 'select o_id, o_entry_d from orderline where w_id = '+str(w)+' and d_id = '+str(d)+' and o_c_id = '+str(c)+' limit 1'
-		print q
-		results = s.execute(q)
+		results = s.execute(self.o_s_order,(w,d,c))
 		
 		oid = 0
 		oentryd = datetime.datetime.now()
@@ -256,8 +292,7 @@ class Transactions:
 			oid = result.o_id
 			oentryd = result.o_entry_d
 
-		q2 = 'select o_carrier_id from o_carrier where w_id = '+ str(w) +' and d_id = '+ str(d) +' and o_id = '+ str(oid) 
-		results2 = s.execute(q2)
+		results2 = s.execute(self.o_s_carr,(w,d,oid))
 		
 		ocarrierid = 0
 		
@@ -265,12 +300,11 @@ class Transactions:
 			ocarrierid = result.o_carrier_id
 
 		
+		out = ""
+		out = cfirst+","+clast+","+cmiddle+","+str(cbalance)+"\n"
+		out += str(oid)+","+str(oentryd)+","+str(ocarrierid)+"\n"
 
-		print "1. : ",cfirst,clast,cmiddle,cbalance
-		print "2. : ",oid,oentryd,ocarrierid
-
-		q3 = 'select ol_i_id, ol_supply_w_id, ol_quantity, ol_amount, ol_delivery_d from orderline where w_id ='+str(w)+' and d_id ='+str(d)+' and o_id = '+str(oid)
-		results3 = s.execute(q3)
+		results3 = s.execute(self.o_s1_order,(w,d,oid))
 		
 		iid = 0
 		supplyid = 0
@@ -284,43 +318,45 @@ class Transactions:
 			olquantity = result.ol_quantity
 			olamount = result.ol_amount
 			deliveryd = result.ol_delivery_d
-			print "3. : ",iid,supplyid,olquantity,olamount,deliveryd
+			out += str(iid)+","+str(supplyid)+","+str(olquantity)+","+str(olamount)+","+str(deliveryd)+"\n"
+		self.file.write(out)
 
 
 	def stocklevel(self,w,d,t,l):
-		s = self.session
-                query  = 'Select d_next_o_id from next_order where w_id='+str(w)+' and d_id='+str(d)
-		rows = s.execute(query)
+		s = self.s
+                #query  = 'Select d_next_o_id from next_order where w_id='+str(w)+' and d_id='+str(d)
+		rows = s.execute(self.s_s_next,(w,d))
 		oid = 0
 		for row in rows:
 			oid = int(row.d_next_o_id)
 		oid = oid-l
-		query = 'select ol_i_id from orderline where w_id='+str(w)+' and d_id='+str(d)+' and o_id >='+str(oid)
-		rows = s.execute(query)
+		#query = 'select ol_i_id from orderline where w_id='+str(w)+' and d_id='+str(d)+' and o_id >='+str(oid)
+		rows = s.execute(self.s_s_order,(w,d,oid))
 		count = 0
 		itemset = set()
 		for row in rows:
 			item_id = int(row.ol_i_id)
 			if item_id in itemset:
 				continue
-			query = 'select s_quantity from item_stock where w_id ='+str(w)+' and i_id ='+str(item_id)
-			result = s.execute(query)
+			#query = 'select s_quantity from item_stock where w_id ='+str(w)+' and i_id ='+str(item_id)
+			result = s.execute(self.s_s_stock,(w,item_id))
 			itemset.add(item_id)
 			for j in result:
 				if j.s_quantity <t:
 					count = count+1
-		print "Total number of items in warehouse:"+str(w)+" below threshold is: "+str(count)
+		out = "Total number of items in warehouse:"+str(w)+" below threshold is: "+str(count)+"\n"
+
+                self.file.write(out)
+
 	
 	def popularItem(self,w,d,l):
-		s = self.session
-		query  = 'Select d_next_o_id from next_order where w_id='+str(w)+' and d_id='+str(d)
-                rows = s.execute(query)
+		s = self.s
+                rows = s.execute(self.i_s_next,(w,d))
                 oid = 0
                 for row in rows:
                         oid = int(row.d_next_o_id)
                 oid = oid-l
-                query = 'select o_id,ol_i_id,o_entry_d,ol_quantity,o_c_id from orderline where w_id='+str(w)+' and d_id='+str(d)+' and o_id >='+str(oid)
-                rows = s.execute(query)
+                rows = s.execute(self.i_s_order,(w,d,oid))
 		storerows = copy.copy(rows)
 		orderdc = dict()
 		for row in rows:
@@ -341,17 +377,13 @@ class Transactions:
 				pItem = PopularItem(oid,item,quan,entry_d,cid)
 				orderdc[oid] = pItem	
 
-		#after getting all the popular item in the last L order
-		print "District Identifier:(",w,",",d,")"
-		print "Orders Examined:",l
 		
 		itemdc = dict()
-
+		out = ""
 		for obj in orderdc.itervalues():
 			item = obj.item
 			cid = obj.cid
-			query = 'select c_first,c_middle,c_last from customer_main where w_id = '+str(w)+' and d_id='+str(d)+' and c_id='+str(cid)
-			result = s.execute(query)
+			result = s.execute(self.i_s_cmain,(w,d,cid))
 			first = ""
 			middle = ""
 			last = ""
@@ -359,8 +391,7 @@ class Transactions:
 				first = r.c_first
 				middle = r.c_middle
 				last = r.c_last
-			query = 'select i_name from item_stock where w_id ='+str(w)+' and i_id ='+str(item)
-			result = s.execute(query)
+			result = s.execute(self.i_s_stock,(w,item))
 			iname = ""
 			for r in result:
 				iname = r.i_name
@@ -368,10 +399,14 @@ class Transactions:
 			if  item not in itemdc:
 				ob = ItemInfo(item,iname,0)
 				itemdc[item] = ob
-			
-			print 'Order Id and Entry Date:',obj.oid,",",obj.entry
-			print 'Customers who placed the order:',first,middle,last
-			print 'Item name and quantity of popular item:',iname,",",obj.quantity
+			if iname is None:
+				iname = ""
+			quant = 0
+			if obj.quantity is not None:
+				quant = obj.quantity
+			out += "Order Id and Entry Date:"+str(obj.oid)+","+str(obj.entry)+"\n"
+			out += "Customers who placed the order:"+first+","+middle+","+last+"\n"
+			out += "Item name and quantity of popular item:"+iname+","+str(quant)+"\n"
 		
 		for row in storerows:
 			item = row.ol_i_id
@@ -379,13 +414,18 @@ class Transactions:
 				obj = itemdc[item]
 				obj.count = obj.count+1
 		for j in itemdc.itervalues():
-			print j.name,(j.count*100)/l,'%'
+			name = ""
+			if j.name is not None:
+				name = j.name
+			out += name+","+str((j.count*100)/l)+"%\n"
+                self.file.write(out)
+
 			
 
 	def topbalance(self):
-		s = self.session
-		query = 'select w_id,d_id,c_id,c_balance from c_payment'
-		rows = s.execute(query)
+		s = self.s
+		#query = 'select w_id,d_id,c_id,c_balance from c_payment'
+		rows = s.execute(self.t_s_cpay)
 		cust_list = []
 		for row in rows:
 			wid = row.w_id
@@ -394,10 +434,11 @@ class Transactions:
 			bal = int(row.c_balance)
 			ls = [wid,did,cid,bal]
 			cust_list.append(ls)
-		for i in sorted(cust_list,key=lambda x: x[3])[-10:][::-1]:
+		out = ""
+		for i in sorted(cust_list,key=lambda x: x[3])[:10]:
 			wid,did,cid = i[0],i[1],i[2]
-			query = 'select c_first,c_middle,c_last,w_name,d_name from customer_main where w_id = '+str(wid)+' and d_id='+str(did)+' and c_id='+str(cid)
-                        r = s.execute(query)
+			#query = 'select c_first,c_middle,c_last,w_name,d_name from customer_main where w_id = '+str(wid)+' and d_id='+str(did)+' and c_id='+str(cid)
+                        r = s.execute(self.t_s_cmain,(wid,did,cid))
                         first = "vikas"
                         middle = ""
                         last = "Sherawat"
@@ -407,5 +448,6 @@ class Transactions:
                                 first = res.c_first
                                 middle = res.c_middle
                                 last = res.c_last
-                        print first,middle,last,row.c_balance,wname,dname
+                        out += first+","+middle+","+last+","+str(i[3])+","+wname+","+dname+"\n"
+		self.file.write(out)
 

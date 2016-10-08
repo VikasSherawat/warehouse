@@ -1,11 +1,11 @@
+from __future__ import division
 import os
 import sys
 import time
 from transactions import Transactions
-
 import threading
 import time
-
+import traceback
 
 class MyThread (threading.Thread):
 
@@ -15,31 +15,43 @@ class MyThread (threading.Thread):
 
         def run(self):
 		start = time.time()
-		fname = os.getcwd()+'/trans/'+str(self.id)+'.txt'
-		print "filename is ",fname
-                count = self.readFile(fname)
-		print "********************************************************************************"
-		print "Total Transactions processed are:",count
-		rtime = time.time()-start
-		throughput =rtime/count
-		print "Total Time taken in seconds:",rtime
-		print "Throughput =",throughput
-		print "********************************************************************************"
-		print "Thread ",self.id, "exiting"
+		count = 0
+		try:
+			fname = os.getcwd()+'/trans/'+str(self.id)+'.txt'
+                	count = self.readFile(fname)
+		except Exception as e:
+			print "Thread:"+str(self.id)+" interrupted"
+			traceback.print_exc()
+		finally:
+			rtime = time.time()-start
+			throughput =count/rtime
+			out = "File finished:"+str(self.id)+","+str(count)+","+str(rtime)+","+str(throughput)
+			print out
+			MainThread.totalcount += count
+			MainThread.totaltime += rtime
+			MainThread.filesfinish +=1
+			ls = []
+			ls.append(throughput)
+			if MainThread.filesfinish == MainThread.totalfiles:
+				timetaken = time.time()-MainThread.starttime
+				print "Total Transaction processed:"+str(MainThread.totalcount)
+				print "Total Time taken:"+str(timetaken)
+				print "Total Throughput:"+str(MainThread.totalcount/timetaken)
+				print "Maximum Throughput = "+str(max(ls))
+				print "Minimum Throughput = "+str(min(ls))
+				print "Average Throughput = "+str(sum(ls)/len(ls))
 
 	def readFile(self,fname):
 		with open(fname) as f:
 			content = [x.strip('\n') for x in f.readlines()]
-		t = Transactions()
+		t = Transactions(self.id)
 		i = 0
 		tcount = 0
 		while i < len(content):
 			transx = content[i].split(",");
 			transType = transx[0]
 			tcount =  tcount + 1
-			print "------------------------------------------------------------------------------------------------------------------------------------"  
 			if transType == 'N':
-				print "New Order type transaction======================================================================================="
 				M = int(transx[4])
 				c = int(transx[1])
 				w = int(transx[2])
@@ -48,62 +60,43 @@ class MyThread (threading.Thread):
 				t.neworder(c,w,d,lis)
 				i = i + M
 			elif transType == 'D':
-				print "Delivery type transaction======================================================================================="
 				w = int(transx[1])
 				c = int(transx[2])
 				t.delivery(w,c)
 			elif transType == 'P':
-				print "Payment type transaction========================================================================================="
 				w = int(transx[1])
 				d = int(transx[2])
 				c = int(transx[3])
-				p = int(transx[4])
+				p = int(float(transx[4]))
 				t.payment(c,w,d,p)
 			elif transType == 'S':
-				print "Stock level transaction=========================================================================================="
 				w = int(transx[1])
 				d = int(transx[2])
 				th  = int(transx[3])
 				l = int(transx[4])
 				t.stocklevel(w,d,th,l)
 			elif transType == 'O':
-				print "Order status transaction======================================================================================="
 				w = int(transx[1])
 				d = int(transx[2])
 				c = int(transx[3])
 				t.orderstatus(w,d,c)
 			elif transType == 'I':
-				print "Popular Item transaction======================================================================================="
 				w = int(transx[1])
 				d = int(transx[2])
 				l = int(transx[3])
 				t.popularItem(w,d,l)
 			elif transType == 'T':
-				print "Top Balance transaction========================================================================================="
 				t.topbalance()
 			else:
 				print 'Input Mistmatch'
 			i = i+1;
 		return tcount;
 
-	def readTransactions(self,start, end):
-		#print 'Inside readTransactions'
-		count = 0;
-		for i in range(start,end):
-			filepath = os.getcwd()+'/D-xact-revised/'+str(i)+'.txt'
-			#print filepath
-			count = count + readFile(filepath)
-		return count;
+class MainThread:
+        totaltime =0.0
+        totalcount =0
+        starttime = 0.0
+        totalfiles =0
+        filesfinish = 0
 
 
-if __name__ == "__main__":
-	#print 'Inside main'
-	start = time.time()
-	begin = int(sys.argv[1])
-	end = int(sys.argv[2])
-	count =	readTransactions(begin,end+1)
-	print "Total Transactions processed are:",count
-	rtime = time.time()-start
-	throughput =rtime/count 		
-	print "Total Time taken in seconds:",rtime
-	print "Throughput =",throughput
