@@ -1,14 +1,4 @@
 import pandas as pd
-from cassandra.cluster import Cluster
-from cassandra.query import BatchStatement
-from cassandra import ConsistencyLevel
-import copy
-import datetime
-from decimal import Decimal
-
-cluster = Cluster(contact_points = ['127.0.0.1'])
-print(cluster)
-session = cluster.connect('warehouse')
 
 file1 = pd.read_csv("item.csv")
 file2 = pd.read_csv("stock.csv")
