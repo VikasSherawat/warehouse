@@ -18,9 +18,7 @@ with open('table5.csv') as f:
 i=1
 while i < len(contents):
         transx = contents[i].strip('\n').split(",");
-        query = 'UPDATE wd_payment SET w_ytd = w_ytd +'+ str(int(float(transx[2]))) + ' WHERE w_id='+ transx[0] +' and d_id='+ transx[1] +';'
-        session.execute(query)
-        query = 'UPDATE wd_payment SET d_ytd = d_ytd +'+str(int(float(transx[3]))) + ' WHERE w_id='+ transx[0] +' and d_id='+ transx[1] +';'
+        query = 'UPDATE w_payment SET w_ytd = w_ytd +'+str(int(float(transx[1]))) + ' WHERE w_id='+ transx[0] +';'
         session.execute(query)
         i=i+1
 
