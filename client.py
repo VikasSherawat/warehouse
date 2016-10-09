@@ -9,15 +9,19 @@ import traceback
 
 class MyThread (threading.Thread):
 
-        def __init__(self, id):
+        def __init__(self):
+		print "Initialized Thread"
                 threading.Thread.__init__(self)
-                self.id = id
+#                self.id = id
+		self.countfile = 'count.txt'
 
-        def run(self):
+        def run(self, id):
+		self.id = id
+		print "Running thread"
 		start = time.time()
 		count = 0
 		try:
-			fname = os.getcwd()+'/trans/'+str(self.id)+'.txt'
+			fname = os.getcwd()+'/copy/'+str(self.id)+'.txt'
                 	count = self.readFile(fname)
 		except Exception as e:
 			print "Thread:"+str(self.id)+" interrupted"
@@ -27,12 +31,16 @@ class MyThread (threading.Thread):
 			throughput =count/rtime
 			out = "File finished:"+str(self.id)+","+str(count)+","+str(rtime)+","+str(throughput)
 			print out
+			with open(self.countfile, "a") as f:
+			    f.write(str(count)+","+str(throughput) + '\n')
+
 			MainThread.totalcount += count
 			MainThread.totaltime += rtime
-			MainThread.filesfinish +=1
+			MainThread.filesfinish += 1
 			ls = []
-			ls.append(throughput)
-			if MainThread.filesfinish == MainThread.totalfiles:
+			ls.append(throughput) 
+		 	print "Files total: %s:" % MainThread.totalfiles	
+			if MainThread.filesfinish == MainThread.totalfiles: 
 				timetaken = time.time()-MainThread.starttime
 				print "Total Transaction processed:"+str(MainThread.totalcount)
 				print "Total Time taken:"+str(timetaken)
