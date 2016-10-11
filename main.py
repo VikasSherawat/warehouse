@@ -1,4 +1,5 @@
 from multiprocessing import Pool,Process
+# import pathos.multiprocessing as mp
 import time
 from client import MyThread, MainThread
 import sys
@@ -14,20 +15,12 @@ if __name__ == '__main__':
     totalfiles = end + 1 - begin
     countfile = 'count.txt'
     ls = []
-#     ready_count = 0 
-#     files = [i for i in xrange(begin, end+1)]
-#     pool = Pool(totalfiles)
-#     result = pool.map_async(MyThread().run, files)
-    if os.path.isfile(countfile):	
-	os.remove(countfile)
-
     for i in xrange(begin, end+1):
 	thread = MyThread()
 	process = Process(target=thread.run, args=(i,))
 	process.start()
-        # result = pool.map_async(thread.run,i)
 	
-	ls.append(process)
+    ls.append(process)
     
     for i in ls:
 	i.join()
@@ -37,11 +30,15 @@ if __name__ == '__main__':
     thru = []
     with open(countfile, 'r') as f:
 	content = [x.strip('\n') for x in f.readlines()] 
-	count= 0
-        for c in content:
+    count= 0
+    for c in content:
 	    thru.append(float(c.split(',')[1]))
-            count += int(c.split(',')[0])
-	print "Max:",max(thru)
-	print "Min:",min(thru)
-	print "Avg:",sum(thru)/len(thru)
-	print "Total Throughpupt",count/timetaken
+	    val = int(c.split(',')[0])
+	    print "Count Value is ",val 
+            count += val
+    print "Max:",max(thru)
+    print "Min:",min(thru)
+    print "Avg:",sum(thru)/len(thru)
+    print "Total transacation",count
+    print "Total Time taken",timetaken
+    print "Total Throughpupt",count/timetaken

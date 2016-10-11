@@ -25,6 +25,9 @@ session.execute('create index carrier_id on warehouse.o_carrier (o_carrier_id);'
 
 session.execute('create table c_payment ( w_id int, d_id int, c_id int, c_ytd_payment counter, c_payment_cnt counter, c_delivery_cnt counter, primary key((w_id,d_id),c_id));')
 
-session.execute('create table c_balance ( w_id int, d_id int, dc_id int, c_balance decimal, c_id int, primary key((w_id,d_id),c_balance,dc_id)) with clustering order by (c_balance desc, dc_id asc);')
+session.execute('CREATE TABLE warehouse.c_balance (     pk int,     c_balance decimal,     stamp timestamp,     c_id int,     d_id int,     w_id int,     PRIMARY KEY (pk, c_balance, stamp) ) WITH CLUSTERING ORDER BY (c_balance ASC, stamp ASC);')
 
-session.execute('create index ic_id on warehouse.c_balance(c_id);')
+session.execute('CREATE INDEX iw_id ON warehouse.c_balance (w_id);')
+session.execute('CREATE INDEX id_id ON warehouse.c_balance (d_id);')
+session.execute('CREATE INDEX ic_id ON warehouse.c_balance (c_id);')
+

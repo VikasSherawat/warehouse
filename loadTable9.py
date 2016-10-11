@@ -5,6 +5,7 @@ import datetime
 from decimal import Decimal
 from cass import DB
 
+import uuid
 db = DB()
 session = db.getInstance(['127.0.0.1'],9042,'warehouse')
 
@@ -24,6 +25,6 @@ while i < len(contents):
         dc = int(transx[3])
 	c = int(dc)
         bal = int(float(transx[2]))
-	query = session.prepare("insert into c_balance(pk,c_balance,stamp,w_id,d_id,c_id) values (?,?,?,?,?,?)")
-        session.execute(query,(0,bal,datetime.datetime.now(),w,d,c))
+	query = session.prepare("update c_balance set c_balance = c_balance + ? where w_id = ? and d_id =? and c_id = ?")
+        session.execute(query,(bal,w,d,c))
         i=i+1

@@ -1,8 +1,9 @@
 class PopularItem:
 	
-	def __init__(self,oid,item,quantity,entry,cid):
+	def __init__(self,oid,item,name,quantity,entry,cid):
 		self.oid = oid
 		self.item = item
+		self.name = name
 		self.quantity = quantity
 		self.entry = entry
 		self.cid = cid

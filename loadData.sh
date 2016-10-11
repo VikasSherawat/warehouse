@@ -7,7 +7,7 @@ echo "--------------------------------------------------------------------------
 
 #export PATH="echo $PATH | sed -e 's/:\/temp/anaconda2/bin/$//'"
 echo "-----------------------------------------------------------------------------------------------"
-#cqlsh -e "CREATE KEYSPACE warehouse WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'}  AND durable_writes = true;"
+cqlsh -e "CREATE KEYSPACE warehouse WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'}  AND durable_writes = true;"
 echo "Creating tables"
 echo "-----------------------------------------------------------------------------------------------"
 #python createTables.py
@@ -33,6 +33,10 @@ python loadTable6.py
 
 echo "Inserting Data into table 8: c_payment"
 python loadTable8.py
+
+echo "Inserting Data into table 9: c_balance"
+python loadTable9.py
+
 
 echo "-----------------------------------------------------------------------------------------------"
 echo "Data inserted successfully"
