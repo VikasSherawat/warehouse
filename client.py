@@ -2,26 +2,23 @@ from __future__ import division
 import os
 import sys
 import time
-from transactions import Transactions
+from transactions40 import Transactions
 import threading
 import time
 import traceback
 
-class MyThread ():
+class MyThread (threading.Thread):
 
         def __init__(self):
-		print "Initialized Thread"
-                # threading.Thread.__init__(self)
-#                self.id = id
+                threading.Thread.__init__(self)
 		self.countfile = 'count.txt'
 
         def run(self, id):
 		self.id = id
-		print "Running thread"
 		start = time.time()
 		count = 0
 		try:
-			fname = os.getcwd()+'/trans/'+str(self.id)+'.txt'
+			fname = os.getcwd()+'/trans40/'+str(self.id)+'.txt'
                 	count = self.readFile(fname)
 		except Exception as e:
 			print "Thread:"+str(self.id)+" interrupted"
@@ -31,9 +28,7 @@ class MyThread ():
 			throughput =count/rtime
 			out = "File finished:"+str(self.id)+","+str(count)+","+str(rtime)+","+str(throughput)
 			print out
-			if os.path.isfile(self.countfile):
-				os.remove(self.countfile)
-			with open(self.countfile, "a") as f:
+		with open(self.countfile, "a") as f:
 			    f.write(str(count)+","+str(throughput) + '\n')
 
 
@@ -83,24 +78,24 @@ class MyThread ():
 				t.popularItem(w,d,l)
 			elif transType == 'T':
 				a = 0
-				#t.topbalance()
+				t.topbalance()
 			else:
 				print 'Input Mistmatch'
 			i = i+1;i
 		if t.ntime != 0:
-			print self.id,"\tNew Order:\t",t.ntime,"\t",t.nc,"\t",t.nc/t.ntime
+			print self.id,"\tNew Order:\t",t.ntime,"\t\t",t.nc,"\t",t.nc/t.ntime
 		if t.ptime != 0:
-			print self.id,"\tPayment :\t",t.ptime,"\t",t.pc,"\t",t.pc/t.ptime
+			print self.id,"\tPayment :\t",t.ptime,"\t\t",t.pc,"\t",t.pc/t.ptime
 		if t.dtime != 0:
-			print self.id,"\tDelivery:\t",t.dtime,"\t",t.dc,"\t",t.dc/t.dtime
+			print self.id,"\tDelivery:\t",t.dtime,"\t\t",t.dc,"\t",t.dc/t.dtime
 		if t.otime != 0:
-			print self.id,"\tOrder Status:\t",t.otime,"\t",t.oc,"\t",t.oc/t.otime
+			print self.id,"\tOrder Status:\t",t.otime,"\t\t",t.oc,"\t",t.oc/t.otime
 		if t.stime != 0:
-			print self.id,"\tStock Level:\t",t.stime,"\t",t.sc,"\t",t.sc/t.stime
+			print self.id,"\tStock Level:\t",t.stime,"\t\t",t.sc,"\t",t.sc/t.stime
 		if t.Itime != 0:
-			print self.id,"\tPopular Item:\t",t.Itime,"\t",t.Ic,"\t",t.Ic/t.Itime
+			print self.id,"\tPopular Item:\t",t.Itime,"\t\t",t.Ic,"\t",t.Ic/t.Itime
 		if t.Ttime != 0:
-			print self.id,"\tTop Balance:\t",t.Ttime,"\t",t.Tc,"\t",t.Tc/t.Ttime
+			print self.id,"\tTop Balance:\t",t.Ttime,"\t\t",t.Tc,"\t",t.Tc/t.Ttime
 		return tcount;
 
 class MainThread:

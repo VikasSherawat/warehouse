@@ -25,3 +25,15 @@ class NewOrder:
 		self.quantity = quantity
 		self.amount = amount
 		self.stock = stock
+
+class Balance:
+	
+	def __init__(self, w,d,c,bal):
+		self.w = w
+		self.d = d
+		self.c = c
+		self.bal = bal
+	def __cmp__(self, other):
+		return cmp(self.bal, other.bal)
+
+

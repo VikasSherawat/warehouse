@@ -18,5 +18,6 @@ if __name__ == "__main__":
 		t = MyThread(i)
 		ls.append(t)
 		t.start()
+
 	for i in ls:
 		i.join()

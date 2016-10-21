@@ -15,7 +15,7 @@ class Transactions:
 	def __init__(self,fid):
 		db = DB()
 		self.ctree = {}
-		self.s = db.getInstance(['192.168.48.243'],9042,'warehouse40')
+		self.s = db.getInstance(['127.0.0.1'],9042,'warehouse')
 		self.ntime = 0.0
 		self.ptime = 0.0
 		self.dtime = 0.0
@@ -276,7 +276,7 @@ class Transactions:
 
 		s = self.s
 		orderdc = {}
-		for i in range(1,40):
+		for i in range(1,11):
 			#query = 'select o_id from o_carrier where w_id='+str(w)+' and d_id='+str(i)+' and o_carrier_id = 1  limit 1'
 			rows = s.execute(self.d_s_carr,(w,i))
 			for row in rows:
@@ -414,7 +414,7 @@ class Transactions:
 			for j in result:
 				if j.s_quantity <t:
 					count = count+1
-			out = "Total number of items in warehouse40:"+str(w)+" below threshold is: "+str(count)+"\n"
+			out = "Total number of items in warehouse:"+str(w)+" below threshold is: "+str(count)+"\n"
 		except Exception:
 			out = "Exception Occured"
 		finally:
@@ -432,8 +432,6 @@ class Transactions:
                 for row in rows:
                         oid = int(row.d_next_o_id)
                 oid = oid-l
-		tq = time.time()
-		#print "First Query = ",tq-ti
                 rows = s.execute(self.i_s_order,(w,d,oid))
 		storerows = copy.copy(rows)
 		orderdc = dict()
@@ -460,7 +458,6 @@ class Transactions:
 		
 		itemdc = dict()
 		out = ""
-		tq = time.time()
 		for obj in orderdc.itervalues():
 			item = obj.item
 			cid = obj.cid
@@ -485,7 +482,7 @@ class Transactions:
 			out += "Order Id and Entry Date:"+str(obj.oid)+","+str(obj.entry)+"\n"
 			out += "Customers who placed the order:"+first+","+middle+","+last+"\n"
 			out += "Item name and quantity of popular item:"+name+","+str(quant)+"\n"
-		#print "Loop time ,",time.time()-tq	
+		
 		for row in storerows:
 			item = row.ol_i_id
 			if item in itemdc:
@@ -508,7 +505,7 @@ class Transactions:
 		self.Tc += 1
 		count = 0
 		clist = []
-		for i in xrange(1,40):
+		for i in xrange(1,11):
 			rows = s.execute(self.t_s_cbal,(i,))
 			ls = []
 			for row in rows:
